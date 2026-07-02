@@ -24,7 +24,9 @@ if [[ "$IMAGE" =~ ^https?:// ]] || [[ "$IMAGE" =~ ^data: ]]; then
 else
   [ -f "$IMAGE" ] || { echo "ERROR: image file not found: $IMAGE" >&2; exit 1; }
   MIME="$(file -b --mime-type "$IMAGE")"
-  B64="$(base64 -w0 "$IMAGE")"
+  # Portable base64: GNU wraps at 76 cols, macOS does not wrap. Strip all
+  # newlines so the data URL is a single line regardless of platform.
+  B64="$(base64 "$IMAGE" | tr -d '\n')"
   IMAGE_URL="data:${MIME};base64,${B64}"
 fi
 

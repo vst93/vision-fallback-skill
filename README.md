@@ -39,11 +39,55 @@ endpoint.
 
 ## Install
 
+### Generic (Claude Code, Cursor, Windsurf, Codex, …)
+
 ```bash
 npx skills add vst93/vision-fallback-skill
 ```
 
 Replace `vst93` with the GitHub owner of this repository.
+
+> ℹ️ `npx skills add` installs into the harness's own skill directory (e.g.
+> `~/.claude/skills/`). Other harnesses that scan different paths will **not**
+> auto-discover it — see the harness-specific notes below.
+
+### pi (earendil-works/pi-coding-agent)
+
+pi does **not** scan `~/.claude/skills/`. Install into one of pi's discovery
+locations instead. Pick one:
+
+```bash
+# Option A: global skill dir (recommended)
+git clone https://github.com/vst93/vision-fallback-skill \
+  ~/.pi/agent/skills/vision-fallback
+
+# Option B: link the repo you already have
+ln -s /path/to/vision-fallback ~/.pi/agent/skills/vision-fallback
+```
+
+Or, without copying, register the path in `~/.pi/agent/settings.json`:
+
+```json
+{
+  "skills": ["/path/to/vision-fallback"]
+}
+```
+
+For a project-scoped skill, place it under `.pi/skills/` (trusted project) or
+`.agents/skills/` in the repo root instead.
+
+### Verify the install
+
+After installing, confirm the skill is wired up and ready:
+
+```bash
+cd <skill-dir>
+./scripts/check.sh
+```
+
+It checks shell deps, `ARK_API_KEY` resolution, and endpoint reachability, and
+exits non-zero with an actionable message if anything is missing. Run this once
+before relying on the skill — if `check.sh` fails, the API call will fail too.
 
 Compatible with any agent harness that supports the
 [Agent Skills standard](https://agentskills.io/specification)
@@ -88,6 +132,7 @@ The core call is wrapped in a single script:
 vision-fallback/
 ├── SKILL.md                      # Always loaded: trigger + workflow
 ├── scripts/
+│   ├── check.sh                  # Preflight: deps + ARK_API_KEY + endpoint
 │   ├── resolve-key.sh            # ARK_API_KEY resolution (env → dotenv, fail-fast)
 │   └── call-api.sh               # Image → data URL + payload + curl POST
 ├── references/                   # Loaded on demand (progressive disclosure)
