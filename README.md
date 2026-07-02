@@ -1,6 +1,6 @@
 # vision-fallback
 
-[![skills.sh](https://skills.sh/b/vst93/vision-fallback)](https://skills.sh/vst93/vision-fallback)
+[![skills.sh](https://skills.sh/b/vst93/vision-fallback-skill)](https://skills.sh/vst93/vision-fallback-skill)
 
 Fallback multimodal vision reasoning skill for AI coding agents. Activates
 **only when the primary vision model fails** to interpret an image (empty /
@@ -40,7 +40,7 @@ endpoint.
 ## Install
 
 ```bash
-npx skills add vst93/vision-fallback
+npx skills add vst93/vision-fallback-skill
 ```
 
 Replace `vst93` with the GitHub owner of this repository.
