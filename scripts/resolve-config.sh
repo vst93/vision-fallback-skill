@@ -90,6 +90,15 @@ else
   fi
 fi
 
+# When sourced by call-api.sh, stay completely silent on stderr unless
+# VF_VERBOSE=1 is set.  Errors (exit 1) still print to stderr.
+# When run directly, always print the summary.
+if [ "${BASH_SOURCE[0]}" = "${0:-}" ]; then
+  _vf_verbose=1
+else
+  _vf_verbose="${VF_VERBOSE:-0}"
+fi
+
 if [ -z "$VF_API_KEY" ]; then
   cat >&2 <<EOF
 ERROR: No API key resolved for provider '$VISION_PROVIDER'.
@@ -102,5 +111,10 @@ EOF
   exit 1
 fi
 
-# Sanity check only - never print the value.
-echo "Provider: $VF_PROVIDER | Model: $VF_MODEL | Key source: $VF_KEY_SOURCE (len ${#VF_API_KEY})" >&2
+# Sanity check only - never print the key value.
+# NOTE: must end with a command that always returns 0, otherwise `set -e`
+# in the sourcing script will abort on this last line when verbose is off.
+if [ "$_vf_verbose" = "1" ]; then
+  echo "Provider: $VF_PROVIDER | Model: $VF_MODEL | Key source: $VF_KEY_SOURCE (len ${#VF_API_KEY})" >&2
+fi
+true

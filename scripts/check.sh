@@ -9,15 +9,27 @@
 # Exits 0 only when all checks pass. On failure, prints a clear, actionable
 # message to stderr and exits non-zero. Never prints the key value.
 #
+# By default output is minimal (one line per check).  Set VF_VERBOSE=1 for
+# colored, detailed output.
+#
 # Usage:  ./scripts/check.sh
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATUS=0
+VERBOSE="${VF_VERBOSE:-0}"
 
-red()   { printf '\033[31m%s\033[0m\n' "$*"; }
-green() { printf '\033[32m%s\033[0m\n' "$*"; }
-yellow(){ printf '\033[33m%s\033[0m\n' "$*"; }
+# Minimal output: plain text, no ANSI colors (agents don't need colors).
+# Verbose mode: colored, detailed (for human terminal use).
+if [ "$VERBOSE" = "1" ]; then
+  red()   { printf '\033[31m%s\033[0m\n' "$*"; }
+  green() { printf '\033[32m%s\033[0m\n' "$*"; }
+  yellow(){ printf '\033[33m%s\033[0m\n' "$*"; }
+else
+  red()   { printf '%s\n' "$*"; }
+  green() { printf '%s\n' "$*"; }
+  yellow(){ printf '%s\n' "$*"; }
+fi
 
 : "${VISION_PROVIDER:=ark}"
 
@@ -29,16 +41,13 @@ for c in curl jq file base64; do
   fi
 done
 if [ ${#MISSING[@]} -gt 0 ]; then
-  red "FAIL: missing required commands: ${MISSING[*]}"
-  red "       Install them (e.g. via brew/installer) and re-run."
+  red "FAIL: missing commands: ${MISSING[*]}"
   STATUS=1
 else
-  green "OK:   dependencies present (curl, jq, file, base64)"
+  [ "$VERBOSE" = "1" ] && green "OK:   deps (curl, jq, file, base64)"
 fi
 
 # --- 2. Provider config + API key resolution ---
-# Source resolve-config.sh's logic without aborting on failure.
-# We replicate the logic here so we can report all failures clearly.
 case "$VISION_PROVIDER" in
   ark)
     BASE_URL="${VISION_BASE_URL:-https://ark.cn-beijing.volces.com/api/plan/v3}"
@@ -78,14 +87,12 @@ else
     : "${VISION_ENV_FILE:=}"
     for f in "$VISION_ENV_FILE" "$HOME/.env_vars" "/root/.env_vars"; do
       [ -n "$f" ] && [ -f "$f" ] || continue
-      # Check VISION_API_KEY first
       _val="$(_parse_env "$f" VISION_API_KEY)"
       if [ -n "$_val" ]; then
         RESOLVED_KEY="$_val"
         KEY_SOURCE="$f:VISION_API_KEY"
         break
       fi
-      # Then provider-specific
       _val="$(_parse_env "$f" "$KEY_ENV")"
       if [ -n "$_val" ]; then
         RESOLVED_KEY="$_val"
@@ -98,42 +105,30 @@ fi
 unset -f _parse_env
 
 if [ -z "$RESOLVED_KEY" ]; then
-  red "FAIL: No API key resolved for provider '$VISION_PROVIDER'."
-  red "       Tried: VISION_API_KEY, $KEY_ENV, dotenv files (~/.env_vars)."
-  red "       Set one of:"
-  red "         export VISION_API_KEY=...       # works for any provider"
-  red "         export ${KEY_ENV}=...           # provider-specific"
-  red "       Or store in ~/.env_vars."
-  red "       See references/configuration.md."
+  red "FAIL: no API key. Set VISION_API_KEY or ${KEY_ENV} (or store in ~/.env_vars)"
   STATUS=1
 else
-  green "OK:   provider=$VISION_PROVIDER model=$MODEL key=$KEY_SOURCE (len ${#RESOLVED_KEY})"
+  [ "$VERBOSE" = "1" ] && green "OK:   provider=$VISION_PROVIDER model=$MODEL key=$KEY_SOURCE (len ${#RESOLVED_KEY})"
 fi
 
-# --- 3. Endpoint reachability ---
+# --- 3. Endpoint reachability (warning only, not fatal) ---
 HOST="$(printf '%s' "$BASE_URL" | sed -E 's|https?://([^/:]+).*|\1|')"
-# Preserve the original scheme (http or https) for the reachability check.
 SCHEME="$(printf '%s' "$BASE_URL" | sed -E 's|^(https?)://.*|\1|')"
 [ -z "$SCHEME" ] && SCHEME="https"
 if command -v curl >/dev/null 2>&1; then
   if curl -sS --connect-timeout 5 --max-time 8 \
         "${SCHEME}://${HOST}/" -o /dev/null 2>/dev/null; then
-    green "OK:   endpoint reachable (${SCHEME}://${HOST})"
+    [ "$VERBOSE" = "1" ] && green "OK:   endpoint reachable (${SCHEME}://${HOST})"
   else
-    yellow "WARN: could not reach ${SCHEME}://${HOST} within 5s."
-    yellow "      Check network / region reachability. The API call may still fail."
-    # Reachability is a warning, not a hard failure (could be transient / proxied).
+    [ "$VERBOSE" = "1" ] && yellow "WARN: endpoint ${SCHEME}://${HOST} not reachable (may be transient/proxied)"
   fi
 fi
 
 # --- Summary ---
 if [ "$STATUS" -ne 0 ]; then
-  red ""
-  red "Preflight FAILED. Fix the issues above before calling ./scripts/call-api.sh."
-  red "Do NOT substitute this skill with local OCR (tesseract) - it cannot do"
-  red "visual/layout understanding. Configure the missing prerequisite instead."
+  red "Preflight FAILED. Fix the above before calling call-api.sh."
   exit "$STATUS"
 fi
 
-green ""
-green "Preflight OK. Ready to run ./scripts/call-api.sh"
+[ "$VERBOSE" = "1" ] && green "Preflight OK."
+true

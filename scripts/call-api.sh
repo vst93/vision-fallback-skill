@@ -9,6 +9,9 @@
 #
 # Provider is controlled by VISION_PROVIDER (ark|openai), default ark.
 # See scripts/resolve-config.sh for full configuration.
+#
+# All diagnostic output goes to stderr.  Stdout receives only the API JSON
+# response so the caller can pipe it directly to jq.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -90,7 +93,9 @@ build_payload() {
 PAYLOAD="$(build_payload)"
 
 # --- POST ---
+# SECURITY: $VF_API_KEY is the resolved key from resolve-config.sh.
+# It is never logged or echoed - only used in the Authorization header.
 curl -sS "$VF_ENDPOINT" \
-  -H "Authorization: Bearer ***" \
+  -H "Authorization: Bearer $VF_API_KEY" \
   -H "Content-Type: application/json" \
   -d "$PAYLOAD"
