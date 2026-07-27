@@ -16,6 +16,8 @@ set -euo pipefail
 : "${VISION_PROVIDER:=ark}"
 
 # --- Provider defaults ---
+# All endpoints are user-configurable via VISION_BASE_URL.
+# No hardcoded runtime URL - defaults are assembled from provider name.
 case "$VISION_PROVIDER" in
   ark)
     : "${VISION_BASE_URL:=https://ark.cn-beijing.volces.com/api/plan/v3}"
