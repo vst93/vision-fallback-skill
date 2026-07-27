@@ -1,6 +1,8 @@
 # vision-fallback
 
 [![skills.sh](https://skills.sh/b/vst93/vision-fallback-skill)](https://skills.sh/vst93/vision-fallback-skill)
+[![English](https://img.shields.io/badge/README-English-blue)](README.md)
+[![中文](https://img.shields.io/badge/README-中文-red)](README.zh-CN.md)
 
 Fallback multimodal vision skill for AI coding agents. Activates **only when
 the primary vision model fails** to interpret an image (empty/unknown output,
