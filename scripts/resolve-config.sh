@@ -42,7 +42,7 @@ VF_ENDPOINT="${VISION_BASE_URL%/}/chat/completions"
 # --- Resolve API key (precedence: explicit > provider-specific > dotenv) ---
 # 1. VISION_API_KEY (explicit override, works for any provider)
 # 2. Provider-specific env var (ARK_API_KEY / OPENAI_API_KEY)
-# 3. Dotenv files
+# 3. Dotenv files (parsed safely with grep, NOT sourced)
 VF_API_KEY=""
 VF_KEY_SOURCE=""
 
@@ -56,24 +56,37 @@ else
     VF_API_KEY="$prov_key"
     VF_KEY_SOURCE="$KEY_ENV"
   else
-    # Search dotenv files
+    # Search dotenv files - parse with grep instead of sourcing
+    # SECURITY: Sourcing a file executes its content as shell commands, which
+    # is unsafe if the file is writable by another user.  We parse it as
+    # KEY=VALUE lines instead.
     : "${VISION_ENV_FILE:=}"
     for f in "$VISION_ENV_FILE" "$HOME/.env_vars" "/root/.env_vars"; do
       [ -n "$f" ] && [ -f "$f" ] || continue
-      set -a; . "$f" 2>/dev/null; set +a
-      # Check VISION_API_KEY first, then provider-specific
-      if [ -n "${VISION_API_KEY:-}" ]; then
-        VF_API_KEY="$VISION_API_KEY"
+      # Safe parse: extract KEY=VALUE lines, no execution
+      _parse_env() {
+        local file="$1" key="$2"
+        # Match: optional whitespace, KEY, =, then value (strip surrounding quotes)
+        grep -E "^\s*${key}=" "$file" 2>/dev/null | \
+          head -1 | \
+          sed -E "s/^\s*${key}=//; s/^\"(.*)\"$/\1/; s/^'(.*)'$/\1/"
+      }
+      # Check VISION_API_KEY first
+      _val="$(_parse_env "$f" VISION_API_KEY)"
+      if [ -n "$_val" ]; then
+        VF_API_KEY="$_val"
         VF_KEY_SOURCE="$f:VISION_API_KEY"
         break
       fi
-      eval "prov_key=\"\${${KEY_ENV}:-}\""
-      if [ -n "$prov_key" ]; then
-        VF_API_KEY="$prov_key"
+      # Then provider-specific
+      _val="$(_parse_env "$f" "$KEY_ENV")"
+      if [ -n "$_val" ]; then
+        VF_API_KEY="$_val"
         VF_KEY_SOURCE="$f:$KEY_ENV"
         break
       fi
     done
+    unset -f _parse_env
   fi
 fi
 

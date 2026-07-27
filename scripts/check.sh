@@ -56,6 +56,14 @@ case "$VISION_PROVIDER" in
     ;;
 esac
 
+# Helper: safely parse KEY=VALUE from a dotenv file (no sourcing/exec)
+_parse_env() {
+  local file="$1" key="$2"
+  grep -E "^\s*${key}=" "$file" 2>/dev/null | \
+    head -1 | \
+    sed -E "s/^\s*${key}=//; s/^\"(.*)\"$/\1/; s/^'(.*)'$/\1/"
+}
+
 RESOLVED_KEY=""
 KEY_SOURCE=""
 if [ -n "${VISION_API_KEY:-}" ]; then
@@ -70,21 +78,24 @@ else
     : "${VISION_ENV_FILE:=}"
     for f in "$VISION_ENV_FILE" "$HOME/.env_vars" "/root/.env_vars"; do
       [ -n "$f" ] && [ -f "$f" ] || continue
-      set -a; . "$f" 2>/dev/null; set +a
-      if [ -n "${VISION_API_KEY:-}" ]; then
-        RESOLVED_KEY="$VISION_API_KEY"
+      # Check VISION_API_KEY first
+      _val="$(_parse_env "$f" VISION_API_KEY)"
+      if [ -n "$_val" ]; then
+        RESOLVED_KEY="$_val"
         KEY_SOURCE="$f:VISION_API_KEY"
         break
       fi
-      eval "prov_key=\"\${${KEY_ENV}:-}\""
-      if [ -n "$prov_key" ]; then
-        RESOLVED_KEY="$prov_key"
+      # Then provider-specific
+      _val="$(_parse_env "$f" "$KEY_ENV")"
+      if [ -n "$_val" ]; then
+        RESOLVED_KEY="$_val"
         KEY_SOURCE="$f:$KEY_ENV"
         break
       fi
     done
   fi
 fi
+unset -f _parse_env
 
 if [ -z "$RESOLVED_KEY" ]; then
   red "FAIL: No API key resolved for provider '$VISION_PROVIDER'."
