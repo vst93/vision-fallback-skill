@@ -8,32 +8,33 @@ unknown output, low confidence, or user-reported failure), and performs
 structured image understanding for UI screenshots, OCR, terminal outputs,
 mobile apps, and layout reconstruction.
 
-It calls the **Volcengine Ark (doubao) vision API** and returns structured
-JSON (`summary`, `objects`, `text_detected`, `ui_structure`,
+It calls an **OpenAI-compatible vision API** (`/chat/completions`) and returns
+structured JSON (`summary`, `objects`, `text_detected`, `ui_structure`,
 `inferred_elements`, `uncertainty_notes`).
 
-> ⚠️ **See the Prerequisites section before installing.** This skill requires a
-> Volcengine `ARK_API_KEY`, which is primarily available in mainland China.
+Supports two providers out of the box:
+
+- **Volcengine Ark (doubao)** — default, optimized for mainland China
+- **OpenAI-compatible** — any provider that speaks the OpenAI Chat Completions
+  API (OpenAI, OpenRouter, Azure OpenAI, vLLM, Ollama, etc.)
 
 ---
 
-## ⚠️ Prerequisites & Region Notice
+## Prerequisites
 
-- This skill calls the **Volcengine Ark (doubao) vision API**
-  (`https://ark.cn-beijing.volces.com`), hosted on Volcengine in **mainland
-  China**.
-- It does **NOT** use OpenRouter, OpenAI, or Anthropic. The only credential it
-  needs is `ARK_API_KEY`, issued by Volcengine (火山引擎).
-- **Users outside mainland China** may be unable to register a Volcengine
-  account or obtain an `ARK_API_KEY`, and may experience network latency /
-  reachability issues to the `ark.cn-beijing.volces.com` endpoint. Please
-  confirm you can access Volcengine before installing.
-- The API key is read from the `ARK_API_KEY` environment variable or
-  `~/.env_vars`. The skill never logs or prints its value.
+- `curl`, `jq`, `file`, `base64` installed
+- An API key for your chosen provider:
 
-If you need a globally available fallback instead, consider swapping the
-endpoint in `references/api-reference.md` for an OpenAI / Anthropic vision
-endpoint.
+| Provider | Key env var | Where to get it |
+|----------|-------------|-----------------|
+| `ark` (default) | `ARK_API_KEY` | Volcengine (火山引擎) |
+| `openai` | `OPENAI_API_KEY` | OpenAI / any compatible provider |
+
+Or use `VISION_API_KEY` which works for **any** provider.
+
+> ⚠️ The default `ark` provider is hosted on Volcengine in **mainland China**.
+> Users outside China may experience latency / reachability issues. Switch to
+> `VISION_PROVIDER=openai` for a globally available alternative.
 
 ---
 
@@ -45,11 +46,9 @@ endpoint.
 npx skills add vst93/vision-fallback-skill
 ```
 
-Replace `vst93` with the GitHub owner of this repository.
-
 > ℹ️ `npx skills add` installs into the harness's own skill directory (e.g.
 > `~/.claude/skills/`). Other harnesses that scan different paths will **not**
-> auto-discover it — see the harness-specific notes below.
+> auto-discover it - see the harness-specific notes below.
 
 ### pi (earendil-works/pi-coding-agent)
 
@@ -85,9 +84,9 @@ cd <skill-dir>
 ./scripts/check.sh
 ```
 
-It checks shell deps, `ARK_API_KEY` resolution, and endpoint reachability, and
+It checks shell deps, API key resolution, and endpoint reachability, and
 exits non-zero with an actionable message if anything is missing. Run this once
-before relying on the skill — if `check.sh` fails, the API call will fail too.
+before relying on the skill - if `check.sh` fails, the API call will fail too.
 
 Compatible with any agent harness that supports the
 [Agent Skills standard](https://agentskills.io/specification)
@@ -95,14 +94,44 @@ Compatible with any agent harness that supports the
 
 ## Configure
 
-Set your Volcengine API key:
+### Doubao (default, no extra config)
 
 ```bash
-# Option A: environment variable (preferred)
+export VISION_PROVIDER=ark
 export ARK_API_KEY=xxxxxxxxxxxxxxxx
+```
 
-# Option B: dotenv file
-echo 'ARK_API_KEY=xxxxxxxxxxxxxxxx' >> ~/.env_vars
+### OpenAI
+
+```bash
+export VISION_PROVIDER=openai
+export OPENAI_API_KEY=sk-...
+```
+
+### Third-party OpenAI-compatible (OpenRouter, Azure, vLLM, etc.)
+
+```bash
+export VISION_PROVIDER=openai
+export VISION_API_KEY=sk-...
+export VISION_BASE_URL=https://your-provider.com/v1
+export VISION_MODEL=your-vision-model
+```
+
+### Universal key (works for any provider)
+
+```bash
+export VISION_API_KEY=...   # overrides ARK_API_KEY / OPENAI_API_KEY
+```
+
+### Dotenv file
+
+Instead of env vars, store keys in `~/.env_vars`:
+
+```bash
+VISION_API_KEY=xxxxxxxxxxxxxxxx
+# or provider-specific:
+# ARK_API_KEY=xxxxxxxxxxxxxxxx
+# OPENAI_API_KEY=sk-...
 ```
 
 See [`references/configuration.md`](references/configuration.md) for the full
@@ -132,11 +161,12 @@ The core call is wrapped in a single script:
 vision-fallback/
 ├── SKILL.md                      # Always loaded: trigger + workflow
 ├── scripts/
-│   ├── check.sh                  # Preflight: deps + ARK_API_KEY + endpoint
-│   ├── resolve-key.sh            # ARK_API_KEY resolution (env → dotenv, fail-fast)
-│   └── call-api.sh               # Image → data URL + payload + curl POST
+│   ├── check.sh                  # Preflight: deps + key + endpoint
+│   ├── resolve-config.sh         # Provider/key/endpoint/model resolution
+│   ├── resolve-key.sh            # (deprecated, kept for backward compat)
+│   └── call-api.sh               # Image -> data URL + payload + curl POST
 ├── references/                   # Loaded on demand (progressive disclosure)
-│   ├── configuration.md          # Key resolution order, ~/.env_vars format
+│   ├── configuration.md          # Provider config, key resolution order
 │   ├── api-reference.md          # Endpoint, headers, body schema, model note
 │   ├── output-format.md          # Response JSON schema
 │   └── constraints.md            # Retry / escalation rules
@@ -148,8 +178,8 @@ vision-fallback/
 
 - Only triggered when primary vision fails.
 - Only one fallback call per image (no retry loop).
-- If output is still insufficient → escalate to a stronger vision model
-  (e.g. GPT-4o / Claude Vision). See
+- If output is still insufficient -> escalate to a stronger vision model
+  (set `VISION_MODEL` or switch `VISION_PROVIDER`). See
   [`references/constraints.md`](references/constraints.md).
 
 ## License

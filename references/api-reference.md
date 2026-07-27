@@ -1,26 +1,33 @@
-# API Reference — Volcengine Ark (doubao) vision
+# API Reference
 
 ## Endpoint
 
-```
-POST https://ark.cn-beijing.volces.com/api/plan/v3/chat/completions
-```
+The skill calls the standard OpenAI-compatible `/chat/completions` endpoint.
+The actual URL depends on `VISION_PROVIDER`:
+
+| Provider | Endpoint |
+|----------|----------|
+| `ark` (default) | `https://ark.cn-beijing.volces.com/api/plan/v3/chat/completions` |
+| `openai` | `https://api.openai.com/v1/chat/completions` |
+
+Override with `VISION_BASE_URL` (the skill appends `/chat/completions`).
 
 ## Headers
 
 ```
-Authorization: Bearer ${ARK_API_KEY}
+Authorization: Bearer <API_KEY>
 Content-Type: application/json
 ```
 
 ## Request body
 
-`content` is an ARRAY mixing text + `image_url` — this is mandatory for
-multimodal input.
+`content` is an ARRAY mixing text + `image_url` - this is mandatory for
+multimodal input. This is the standard OpenAI vision format, compatible with
+both Volcengine Ark and any OpenAI-compatible provider.
 
 ```json
 {
-  "model": "doubao-seed-2.0-lite",
+  "model": "<MODEL>",
   "messages": [
     {
       "role": "system",
@@ -46,15 +53,24 @@ multimodal input.
 
 A ready-to-fill template lives at
 [../assets/payload-template.json](../assets/payload-template.json).
+The `{{MODEL}}` placeholder is substituted at runtime from `VISION_MODEL`
+(defaults: `doubao-seed-2.0-lite` for ark, `gpt-4o-mini` for openai).
 
 ## Model note
 
-Use `doubao-seed-2.0-lite` (configured for this skill).
+| Provider | Default model | Notes |
+|----------|--------------|-------|
+| `ark` | `doubao-seed-2.0-lite` | Volcengine Ark / doubao |
+| `openai` | `gpt-4o-mini` | OpenAI-compatible; override with `VISION_MODEL` |
+
+The Volcengine Ark API is fully OpenAI-compatible (same `/chat/completions`
+endpoint, same request/response schema), so the same payload template works
+for both providers.
 
 ## Image payload preparation
 
-The doubao vision API requires the image inside the message `content` array as
-an `image_url` part. Convert local files to a base64 data URL first:
+The API requires the image inside the message `content` array as an
+`image_url` part. Convert local files to a base64 data URL first:
 
 ```bash
 IMG="$IMAGE_PATH"
@@ -68,8 +84,8 @@ If `image` is already an `http(s)://` URL or a `data:` URL, use it directly.
 ## Minimal curl example
 
 ```bash
-curl -sS https://ark.cn-beijing.volces.com/api/plan/v3/chat/completions \
-  -H "Authorization: Bearer $ARK_API_KEY" \
+curl -sS "$VF_ENDPOINT" \
+  -H "Authorization: Bearer $VF_API_KEY" \
   -H "Content-Type: application/json" \
   -d @payload.json
 ```

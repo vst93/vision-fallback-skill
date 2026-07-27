@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
-# Call the Volcengine Ark (doubao) vision fallback API.
+# Call the vision fallback API.
 #
 # Usage:
 #   ./call-api.sh <image> [ocr_text] [failure_reason] [primary_model_output]
 #
 # <image> may be a local file path, an http(s):// URL, or a data: URL.
 # Prints the raw API JSON response to stdout.
+#
+# Provider is controlled by VISION_PROVIDER (ark|openai), default ark.
+# See scripts/resolve-config.sh for full configuration.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# shellcheck source=resolve-key.sh
-. "$SCRIPT_DIR/resolve-key.sh"
+# shellcheck source=resolve-config.sh
+. "$SCRIPT_DIR/resolve-config.sh"
 
 IMAGE="${1:?missing <image> arg}"
 OCR_TEXT="${2:-}"
@@ -39,16 +42,18 @@ PAYLOAD="$(jq -n \
   --arg ocr "$OCR_TEXT" \
   --arg fr "$FAILURE_REASON" \
   --arg pm "$PRIMARY_OUTPUT" \
+  --arg model "$VF_MODEL" \
   --rawfile tpl "$PAYLOAD_TEMPLATE" \
   '($tpl
     | gsub("\\{\\{IMAGE_URL\\}\\}"; $image_url)
     | gsub("\\{\\{ocr_text\\}\\}"; $ocr)
     | gsub("\\{\\{failure_reason\\}\\}"; $fr)
     | gsub("\\{\\{primary_model_output\\}\\}"; $pm)
+    | gsub("\\{\\{MODEL\\}\\}"; $model)
   ) | fromjson')"
 
 # --- POST ---
-curl -sS https://ark.cn-beijing.volces.com/api/plan/v3/chat/completions \
-  -H "Authorization: Bearer $ARK_API_KEY" \
+curl -sS "$VF_ENDPOINT" \
+  -H "Authorization: Bearer $VF_API_KEY" \
   -H "Content-Type: application/json" \
   -d "$PAYLOAD"

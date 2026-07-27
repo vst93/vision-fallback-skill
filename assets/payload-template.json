@@ -1,5 +1,5 @@
 {
-  "model": "doubao-seed-2.0-lite",
+  "model": "{{MODEL}}",
   "messages": [
     {
       "role": "system",
