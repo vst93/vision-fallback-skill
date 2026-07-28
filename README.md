@@ -41,7 +41,17 @@ npx skills add vst93/vision-fallback-skill
 
 > ℹ️ `npx skills add` installs into the harness's own skill directory (e.g.
 > `~/.claude/skills/`). Other harnesses that scan different paths will **not**
-> auto-discover it — see the harness-specific notes below.
+> auto-discover it - see the harness-specific notes below.
+
+### ClawHub
+
+```bash
+clawhub install @vst93/vision-fallback-skill
+```
+
+> The ClawHub slug is `vision-fallback-skill` (not `vision-fallback`).
+> When publishing updates, use `clawhub sync` (not `clawhub skill publish`
+> with a manual `--slug`), which auto-detects the correct slug and version.
 
 ### pi (earendil-works/pi-coding-agent)
 

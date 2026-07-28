@@ -38,6 +38,16 @@ npx skills add vst93/vision-fallback-skill
 > ℹ️ `npx skills add` 会安装到对应工具的 skill 目录（如 `~/.claude/skills/`）。
 > 其他工具如果扫描不同路径则不会自动发现——参见下方的专项说明。
 
+### ClawHub
+
+```bash
+clawhub install @vst93/vision-fallback-skill
+```
+
+> ClawHub slug 是 `vision-fallback-skill`（不是 `vision-fallback`）。
+> 发布更新时用 `clawhub sync`（不要用 `clawhub skill publish` 手动指定 `--slug`），
+> sync 会自动检测正确的 slug 和版本号。
+
 ### pi (earendil-works/pi-coding-agent)
 
 pi **不**扫描 `~/.claude/skills/`。请安装到 pi 的发现路径：
