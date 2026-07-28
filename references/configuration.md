@@ -44,8 +44,18 @@ stop at the first source that yields a non-empty value:
 
 ## Concrete resolution command
 
-This logic is implemented in `scripts/resolve-config.sh`. The equivalent inline
-form (run once per invocation):
+This logic is implemented in `scripts/resolve-config.sh`. Key resolution
+order:
+
+1.  **Dotenv pre-parse** - before applying provider defaults, read
+    `VISION_PROVIDER`, `VISION_BASE_URL`, `VISION_MODEL` from dotenv files
+    (only if not already set as env vars). This lets users configure the
+    provider in `~/.env_vars` without exporting it.
+2.  **Provider defaults** - apply `:=` defaults for `VISION_BASE_URL` and
+    `VISION_MODEL` based on `VISION_PROVIDER`.
+3.  **API key** - resolve in order: `VISION_API_KEY` env var →
+    provider-specific env var (`ARK_API_KEY` / `OPENAI_API_KEY`) → dotenv
+    files (safe grep parse, no sourcing).
 
 ```bash
 : "${VISION_PROVIDER:=ark}"
@@ -62,13 +72,12 @@ esac
 KEY="${VISION_API_KEY:-}"
 # 2. Provider-specific env
 [ -z "$KEY" ] && eval "KEY=\"\${${KEY_ENV}:-}\""
-# 3. Dotenv files
+# 3. Dotenv files (safe parse, no sourcing)
 if [ -z "$KEY" ]; then
   for f in "$VISION_ENV_FILE" "$HOME/.env_vars" "/root/.env_vars"; do
     [ -n "$f" ] && [ -f "$f" ] || continue
-    set -a; . "$f"; set +a
-    KEY="${VISION_API_KEY:-}"
-    [ -z "$KEY" ] && eval "KEY=\"\${${KEY_ENV}:-}\""
+    KEY="$(grep -E "^\s*VISION_API_KEY=" "$f" | head -1 | sed -E 's/^\s*VISION_API_KEY=//; s/^"(.*)"$/\1/; s/^'"'"'(.*)'"'"'$/\1/')"
+    [ -z "$KEY" ] && KEY="$(grep -E "^\s*${KEY_ENV}=" "$f" | head -1 | sed -E "s/^\s*${KEY_ENV}=//; s/^\"(.*)\"$/\1/; s/^'(.*)'$/\1/")"
     [ -n "$KEY" ] && break
   done
 fi
@@ -78,12 +87,17 @@ fi
 ## Example `~/.env_vars`
 
 ```bash
+# Provider config (optional, env vars take precedence)
+VISION_PROVIDER=openai
+VISION_BASE_URL=https://your-provider.com/v1
+VISION_MODEL=your-vision-model
+
 # Universal - works for any provider
-VISION_API_KEY=sk-xxxxxxxxxxxxxxxx
+VISION_API_KEY=«redacted:sk-…»
 
 # OR provider-specific
 ARK_API_KEY=xxxxxxxxxxxxxxxx
-# OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxx
+# OPENAI_API_KEY=«redacted:sk-…»
 ```
 
 ## Common configurations

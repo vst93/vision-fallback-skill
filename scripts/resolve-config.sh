@@ -13,6 +13,25 @@
 # Exits 1 if no API key can be resolved.
 set -euo pipefail
 
+# --- Load provider config from dotenv (before defaults are applied) ---
+# Explicit env vars always win. Dotenv values fill in unset vars so users
+# can configure VISION_PROVIDER / VISION_BASE_URL / VISION_MODEL in
+# ~/.env_vars without exporting them in the shell.
+# Must run BEFORE the case statement below, which applies := defaults.
+: "${VISION_ENV_FILE:=}"
+for _vf_f in "$VISION_ENV_FILE" "$HOME/.env_vars" "/root/.env_vars"; do
+  [ -n "$_vf_f" ] && [ -f "$_vf_f" ] || continue
+  for _vf_k in VISION_PROVIDER VISION_BASE_URL VISION_MODEL; do
+    eval "_vf_cur=\${${_vf_k}:-}"
+    [ -n "$_vf_cur" ] && continue
+    _vf_val="$(grep -E "^\s*${_vf_k}=" "$_vf_f" 2>/dev/null | head -1 | sed -E "s/^\s*${_vf_k}=//; s/^\"(.*)\"$/\1/; s/^'(.*)'$/\1/")"
+    if [ -n "$_vf_val" ]; then
+      eval "export ${_vf_k}=\$_vf_val"
+    fi
+  done
+done
+unset _vf_f _vf_k _vf_cur _vf_val
+
 : "${VISION_PROVIDER:=ark}"
 
 # --- Provider defaults ---

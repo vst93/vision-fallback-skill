@@ -102,6 +102,12 @@ export VISION_MODEL=your-vision-model
 也可以将 key 存到 `~/.env_vars`：
 
 ```bash
+# Provider 配置（均可选，环境变量优先）
+VISION_PROVIDER=openai
+VISION_BASE_URL=https://your-provider.com/v1
+VISION_MODEL=your-vision-model
+
+# API key（以下任选一种）
 VISION_API_KEY=xxxxxxxxxxxxxxxx
 # 或指定 provider：
 # ARK_API_KEY=xxxxxxxxxxxxxxxx

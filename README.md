@@ -113,6 +113,12 @@ export VISION_MODEL=your-vision-model
 Instead of env vars, store keys in `~/.env_vars`:
 
 ```bash
+# Provider config (all optional, env vars take precedence)
+VISION_PROVIDER=openai
+VISION_BASE_URL=https://your-provider.com/v1
+VISION_MODEL=your-vision-model
+
+# API key (one of the following)
 VISION_API_KEY=xxxxxxxxxxxxxxxx
 # or provider-specific:
 # ARK_API_KEY=xxxxxxxxxxxxxxxx
